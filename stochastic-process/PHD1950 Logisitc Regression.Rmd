@@ -1,0 +1,85 @@
+---
+title: "PHD1950 Logistic Regression"
+output: word_document
+date: "2023-04-15"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+```{r data and summary stat}
+library(readr)
+
+# Loading Data
+
+NKI_cleaned <- read.csv("~/UTH Stochastic Processes in Biostatistics I/PHD1950 Project/PHD1950 Data/NKI_cleaned.csv")
+
+attach(NKI_cleaned)
+
+summary(NKI_cleaned[1:15])
+```
+
+```{r stepwise selection}
+logit.step <- glm(eventdeath ~ age + log(timerecurrence) + diam+
+                    as.factor(chemo) + as.factor(hormonal) +
+                    as.factor(amputation) + as.factor(histtype)+
+                    as.factor(posnodes) + as.factor(grade) +
+                    as.factor(angioinv) +as.factor(lymphinfil),
+                  family=binomial(link=logit), data=NKI_cleaned)
+stepAIC(logit.step)
+```
+
+```{r logit final model}
+logit <- glm(eventdeath ~ log(timerecurrence) + as.factor(grade), family=binomial(link=logit), data=NKI_cleaned)
+summary(logit)
+```
+
+```{r ROC curve}
+roc.analysis <-function (object, newdata = NULL, newplot=TRUE) 
+{
+  if (is.null(newdata)) {
+    pi.tp <- object$fitted[object$y == 1]
+    pi.tn <- object$fitted[object$y == 0]
+  }
+  else {
+    pi.tp <- predict(object, newdata, type = "response")[newdata$y == 1]
+    pi.tn <- predict(object, newdata, type = "response")[newdata$y == 0]
+  }
+
+  pi.all <- sort(c(pi.tp, pi.tn))
+  sens <- rep(1, length(pi.all)+1)
+  specc <- rep(1, length(pi.all)+1)
+  for (i in 1:length(pi.all)) {
+    sens[i+1] <- mean(pi.tp >= pi.all[i], na.rm = T)
+    specc[i+1] <- mean(pi.tn >= pi.all[i], na.rm = T)
+  } 
+  
+  npoints <- length(sens)
+  area <- sum(0.5 * (sens[-1] + sens[-npoints]) * (specc[-npoints] - 
+        specc[-1]))
+  lift <- (sens - specc)[-1]
+  cutoff <- pi.all[lift == max(lift)][1]
+  sensopt <- sens[-1][lift == max(lift)][1]
+  specopt <- 1 - specc[-1][lift == max(lift)][1]
+
+  if (newplot){
+  plot(specc, sens, xlim = c(0, 1), ylim = c(0, 1), type = "s", 
+            xlab = "1-specificity", ylab = "sensitivity", main="ROC")
+  abline(0, 1)
+  }
+  else lines(specc, sens, type="s", lty=2, col=2)
+
+  list(pihat=as.vector(pi.all), sens=as.vector(sens[-1]), 
+  spec=as.vector(1-specc[-1]), area = area, cutoff = cutoff,
+  sensopt = sensopt, specopt = specopt)
+}
+
+trainingROC<-roc.analysis(logit)
+trainingROC
+
+#eventdeathV$y<-NKI_cleaned$eventdeath
+#validationROC <- roc.analysis(logit, newdata=diseaseV, newplot=F)
+#validationROC
+```
+
