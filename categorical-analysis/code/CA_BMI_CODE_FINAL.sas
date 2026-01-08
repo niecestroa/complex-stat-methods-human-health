@@ -3718,3 +3718,4 @@ model BMI_CAT = STROKE_CAT AGE_CAT SEX_CAT / unequalslopes=(AGE_CAT SEX_CAT);
 oddsratio AGE_CAT;
 run;
 
+
